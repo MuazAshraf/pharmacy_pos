@@ -16,8 +16,8 @@ export async function POST(request: Request) {
     }
 
     // Create the bill
-    await createBill(bill);
-    return NextResponse.json({ success: true });
+    const result = await createBill(bill);
+    return NextResponse.json({ success: true, billId: result.billId });
   } catch (error: any) {
     console.error('Error creating bill:', error); // Log the error
     return NextResponse.json(

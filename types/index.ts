@@ -36,3 +36,21 @@ export interface User {
   created_at: Date;
 }
 
+export interface AuthResponse {
+  success: boolean;
+  message: string;
+  token?: string;
+  user?: {
+    id: number;
+    username: string;
+  };
+}
+
+export interface AuthState {
+  isAuthenticated: boolean;
+  user: {
+    id: number;
+    username: string;
+  } | null;
+}
+

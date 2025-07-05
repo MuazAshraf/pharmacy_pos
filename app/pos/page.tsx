@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Medicine, CartItem, Bill } from '../../types';
+import BillReceipt from '../../components/BillReceipt';
 
 export default function POS() {
   const [medicines, setMedicines] = useState<Medicine[]>([]);
@@ -11,6 +12,9 @@ export default function POS() {
   const [search, setSearch] = useState('');
   const [searchBy, setSearchBy] = useState<'salt' | 'brand'>('salt');
   const [error, setError] = useState<string | null>(null);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [currentBill, setCurrentBill] = useState<(Bill & { id: number }) | null>(null);
+  const [billNumber, setBillNumber] = useState('');
 
   useEffect(() => {
     fetchMedicines();
@@ -21,9 +25,9 @@ export default function POS() {
       medicines.filter(medicine => {
         const searchLower = search.toLowerCase();
         if (searchBy === 'salt') {
-          return medicine.saltName.toLowerCase().includes(searchLower);
+          return medicine.saltName.toLowerCase().startsWith(searchLower);
         } else {
-          return medicine.brandName.toLowerCase().includes(searchLower);
+          return medicine.brandName.toLowerCase().startsWith(searchLower);
         }
       })
     );
@@ -88,13 +92,174 @@ export default function POS() {
       if (!response.ok) {
         throw new Error('Failed to create bill');
       }
+      
+      const result = await response.json();
+      
+      // Generate bill number (you can customize this format)
+      const billNum = `${result.billId.toString().padStart(6, '0')}`;
+      setBillNumber(billNum);
+      
+      // Set current bill for receipt
+      setCurrentBill({
+        ...bill,
+        id: result.billId
+      });
+      
+      // Show receipt
+      setShowReceipt(true);
+      
+      // Clear cart and refresh medicines
       setCart([]);
-      alert('Bill created and printed!');
       fetchMedicines();  // Refresh medicines to update stock
     } catch (error) {
       console.error('Error creating bill:', error);
       alert('Failed to create bill. Please try again.');
     }
+  };
+
+  const handlePrint = () => {
+    const printContent = document.getElementById('bill-receipt');
+    if (printContent) {
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        // Get the absolute URL for the logo
+        const logoUrl = `${window.location.origin}/muaz_logo.png`;
+        
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>Bill Receipt</title>
+              <style>
+                * {
+                  margin: 0;
+                  padding: 0;
+                  box-sizing: border-box;
+                }
+                
+                body { 
+                  font-family: 'Courier New', monospace; 
+                  font-size: 12px;
+                  margin: 0; 
+                  padding: 20px;
+                  line-height: 1.4;
+                }
+                
+                .receipt-content { 
+                  max-width: 300px; 
+                  margin: 0 auto;
+                }
+                
+                .text-center { text-align: center; }
+                .text-left { text-align: left; }
+                .text-right { text-align: right; }
+                .font-bold { font-weight: bold; }
+                .font-medium { font-weight: 500; }
+                .text-xl { font-size: 18px; }
+                .text-sm { font-size: 11px; }
+                .text-xs { font-size: 10px; }
+                .text-gray-600 { color: #6b7280; }
+                .text-gray-500 { color: #9ca3af; }
+                
+                .border-b { border-bottom: 1px solid #000; }
+                .border-t { border-top: 1px solid #000; }
+                .pb-4 { padding-bottom: 16px; }
+                .pt-2 { padding-top: 8px; }
+                .pt-4 { padding-top: 16px; }
+                .mb-1 { margin-bottom: 4px; }
+                .mb-2 { margin-bottom: 8px; }
+                .mb-3 { margin-bottom: 12px; }
+                .mb-4 { margin-bottom: 16px; }
+                .mt-2 { margin-top: 8px; }
+                .mt-3 { margin-top: 12px; }
+                .ml-6 { margin-left: 24px; }
+                .py-2 { padding-top: 8px; padding-bottom: 8px; }
+                
+                .grid { display: table; width: 100%; }
+                .grid-cols-12 { table-layout: fixed; }
+                .col-span-1 { display: table-cell; width: 8.33%; }
+                .col-span-2 { display: table-cell; width: 16.66%; }
+                .col-span-3 { display: table-cell; width: 25%; }
+                .col-span-5 { display: table-cell; width: 41.66%; }
+                .gap-1 { border-spacing: 2px; }
+                
+                .flex { display: flex; }
+                .justify-between { justify-content: space-between; }
+                .items-center { align-items: center; }
+                
+                img {
+                  max-width: 50px;
+                  max-height: 50px;
+                  display: block;
+                  margin: 0 auto 8px auto;
+                }
+                
+                .border {
+                  border: 1px solid #000;
+                  padding: 8px;
+                  display: inline-block;
+                  margin: 0 auto;
+                }
+                
+                .font-mono { font-family: 'Courier New', monospace; }
+                
+                @media print {
+                  body { 
+                    margin: 0; 
+                    padding: 10px;
+                    font-size: 11px;
+                  }
+                  .receipt-content { max-width: none; }
+                }
+              </style>
+            </head>
+            <body>
+              ${printContent.innerHTML.replace(
+                /src="[^"]*"/g, 
+                `src="${logoUrl}"`
+              )}
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+        
+        // Wait for images to load before printing
+        const images = printWindow.document.querySelectorAll('img');
+        let imagesLoaded = 0;
+        const totalImages = images.length;
+        
+        if (totalImages === 0) {
+          printWindow.print();
+        } else {
+          images.forEach(img => {
+            if (img.complete) {
+              imagesLoaded++;
+              if (imagesLoaded === totalImages) {
+                setTimeout(() => printWindow.print(), 100);
+              }
+            } else {
+              img.onload = () => {
+                imagesLoaded++;
+                if (imagesLoaded === totalImages) {
+                  setTimeout(() => printWindow.print(), 100);
+                }
+              };
+              img.onerror = () => {
+                imagesLoaded++;
+                if (imagesLoaded === totalImages) {
+                  setTimeout(() => printWindow.print(), 100);
+                }
+              };
+            }
+          });
+        }
+      }
+    }
+  };
+
+  const handleCloseReceipt = () => {
+    setShowReceipt(false);
+    setCurrentBill(null);
+    setBillNumber('');
   };
 
   if (error) {
@@ -203,6 +368,16 @@ export default function POS() {
           </div>
         </div>
       </div>
+      
+      {/* Bill Receipt Modal */}
+      {showReceipt && currentBill && (
+        <BillReceipt
+          bill={currentBill}
+          billNumber={billNumber}
+          onPrint={handlePrint}
+          onClose={handleCloseReceipt}
+        />
+      )}
     </div>
   );
 }

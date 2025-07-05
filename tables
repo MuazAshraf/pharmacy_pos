@@ -1,0 +1,54 @@
+-- First, create the database
+CREATE DATABASE medical_pos;
+
+-- Use the database
+USE medical_pos;
+
+-- Create medicines table
+CREATE TABLE medicines (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  saltName VARCHAR(255) NOT NULL,
+  brandName VARCHAR(255) NOT NULL,
+  actualPrice DECIMAL(10, 2) NOT NULL,
+  discountedPrice DECIMAL(10, 2) NOT NULL,
+  quantity INT NOT NULL DEFAULT 0,
+  unit VARCHAR(50) NOT NULL,
+  expiryDate DATE NOT NULL,
+  shelfNo VARCHAR(50) NOT NULL
+);
+
+-- Create bills table
+CREATE TABLE bills (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  total DECIMAL(10, 2) NOT NULL,
+  createdAt DATETIME NOT NULL
+);
+
+-- Create bill_items table
+CREATE TABLE bill_items (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  billId INT NOT NULL,
+  medicineId INT NOT NULL,
+  quantity INT NOT NULL,
+  price DECIMAL(10, 2) NOT NULL,
+  FOREIGN KEY (billId) REFERENCES bills(id),
+  FOREIGN KEY (medicineId) REFERENCES medicines(id)
+);
+
+-- Create purchases table to track inventory additions
+CREATE TABLE purchases (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  medicineId INT NOT NULL,
+  quantity INT NOT NULL,
+  price DECIMAL(10, 2) NOT NULL,
+  purchaseDate DATETIME NOT NULL,
+  FOREIGN KEY (medicineId) REFERENCES medicines(id)
+);
+
+-- Create users table for authentication
+CREATE TABLE users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(255) NOT NULL UNIQUE,
+  password VARCHAR(255) NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);

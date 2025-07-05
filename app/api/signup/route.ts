@@ -1,22 +1,71 @@
 import { NextResponse } from 'next/server';
-import { createUser } from '../../../lib/dbOperations';
-import bcryptjs from 'bcryptjs';
+import { createUser, getUser } from '@/lib/dbOperations';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
 export async function POST(request: Request) {
   try {
     const { username, password } = await request.json();
 
-    // Hash the password
-    const salt = await bcryptjs.genSalt(10);
-    const hashedPassword = await bcryptjs.hash(password, salt);
+    // Validation
+    if (!username || !password) {
+      return NextResponse.json(
+        { success: false, message: 'Username and password are required' },
+        { status: 400 }
+      );
+    }
 
-    // Create the user
-    await createUser({ username, password: hashedPassword });
+    if (username.length < 3) {
+      return NextResponse.json(
+        { success: false, message: 'Username must be at least 3 characters long' },
+        { status: 400 }
+      );
+    }
 
-    return NextResponse.json({ message: 'User created successfully' });
-  } catch (error) {
-    console.error('Signup error:', error);
-    return NextResponse.json({ error: 'An error occurred during signup' }, { status: 500 });
+    if (password.length < 6) {
+      return NextResponse.json(
+        { success: false, message: 'Password must be at least 6 characters long' },
+        { status: 400 }
+      );
+    }
+
+    // Check if username already exists
+    const existingUser = await getUser(username);
+    if (existingUser) {
+      return NextResponse.json(
+        { success: false, message: 'Username already exists' },
+        { status: 400 }
+      );
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user
+    const userId = await createUser({ username, password: hashedPassword });
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId, username },
+      process.env.JWT_SECRET || '123',
+      { expiresIn: '24h' }
+    );
+
+    return NextResponse.json({
+      success: true,
+      message: 'User created successfully',
+      token,
+      user: {
+        id: userId,
+        username
+      }
+    });
+  } catch (error: any) {
+    console.error('Error in signup:', error);
+    return NextResponse.json(
+      { success: false, message: 'Failed to create user' },
+      { status: 500 }
+    );
   }
 }
 
